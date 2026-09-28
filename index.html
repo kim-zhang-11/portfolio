@@ -71,16 +71,30 @@
     .media-label { margin:24px 0 10px; color:var(--muted); font:13px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace; text-transform:uppercase; letter-spacing:.08em; }
     .media-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
     .media-card { margin:0; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:#fff; }
-    .media-card a { display:block; text-decoration:none; }
+    .media-card a { display:block; text-decoration:none; cursor:zoom-in; }
     .media-card img { display:block; width:100%; aspect-ratio:3/2; object-fit:cover; background:var(--soft); }
     .media-card figcaption { padding:11px 12px 13px; }
     .media-card strong { display:block; font-size:15px; line-height:1.35; font-weight:normal; text-decoration:underline; text-decoration-color:#a7aaa4; text-underline-offset:.18em; }
     .media-card p { margin:7px 0 0; color:var(--muted); font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .media-dialog { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(23,25,22,.72); backdrop-filter:blur(3px); }
+    .media-dialog[hidden] { display:none; }
+    .media-dialog-panel { position:relative; width:min(920px,calc(100vw - 48px)); max-height:calc(100dvh - 48px); overflow:hidden; border:1px solid var(--line); border-radius:14px; background:var(--paper); color:var(--ink); box-shadow:0 24px 80px rgba(23,25,22,.28); }
+    .media-dialog-inner { display:flex; flex-direction:column; max-height:calc(100dvh - 48px); }
+    .media-dialog-image-wrap { display:flex; align-items:center; justify-content:center; min-height:0; padding:18px; background:var(--soft); }
+    .media-dialog img { display:block; max-width:100%; max-height:calc(100dvh - 180px); width:auto; height:auto; object-fit:contain; }
+    .media-dialog-caption { padding:15px 54px 17px 18px; }
+    .media-dialog-caption strong { display:block; font-size:17px; line-height:1.35; font-weight:normal; }
+    .media-dialog-caption p { margin:7px 0 0; color:var(--muted); font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .media-dialog-close { position:absolute; right:12px; bottom:12px; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:0; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--muted); cursor:pointer; }
+    .media-dialog-close:hover { border-color:#a7aaa4; background:var(--soft); color:var(--ink); }
+    .media-dialog-close:focus-visible { outline:2px solid var(--ink); outline-offset:3px; }
+    .media-dialog-close svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
+    body.media-dialog-open { overflow:hidden; }
     .entry[open] summary .organization-link { text-decoration-color:var(--ink); }
     .skip { position:absolute; left:-9999px; top:8px; padding:8px 12px; background:var(--ink); color:white; }
     .skip:focus { left:8px; z-index:10; }
     @media (max-width:900px) { .page{padding:32px 28px}.content{padding-bottom:48px}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
-    @media (max-width:560px) { body{font-size:17px}.page{padding:22px}.title-line{align-items:center;gap:18px;margin-bottom:28px}.profile-photo{width:116px}h1{font-size:34px}.identity-meta{margin-top:9px}.focus-list{columns:1}.row{grid-template-columns:1fr;gap:4px}.bio{font-size:18px}.media-grid{grid-template-columns:1fr} }
+    @media (max-width:560px) { body{font-size:17px}.page{padding:22px}.title-line{align-items:center;gap:18px;margin-bottom:28px}.profile-photo{width:116px}h1{font-size:34px}.identity-meta{margin-top:9px}.focus-list{columns:1}.row{grid-template-columns:1fr;gap:4px}.bio{font-size:18px}.media-grid{grid-template-columns:1fr}.media-dialog{padding:12px}.media-dialog-panel{width:100%;max-height:calc(100dvh - 24px)}.media-dialog-inner{max-height:calc(100dvh - 24px)}.media-dialog-image-wrap{padding:10px}.media-dialog img{max-height:calc(100dvh - 150px)} }
     @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} }
   </style>
 <script data-cookieconsent="ignore" data-uc-allowed="true" src="chrome-extension://iidnbdjijdkbmajdffnidomddglmieko/executor.js" async="" fetchpriority="low"></script></head>
@@ -142,6 +156,16 @@
     </article>
   </main>
 
+  <div class="media-dialog" role="dialog" aria-modal="true" aria-label="Media preview" hidden>
+    <div class="media-dialog-panel">
+      <div class="media-dialog-inner">
+        <div class="media-dialog-image-wrap"><img alt=""></div>
+        <div class="media-dialog-caption"></div>
+      </div>
+      <button class="media-dialog-close" type="button" aria-label="Close media preview" title="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 3.5 9 9m0-9-9 9"/></svg></button>
+    </div>
+  </div>
+
 
 
 
@@ -170,6 +194,42 @@
 
       entries.forEach((entry) => entry.addEventListener('toggle', updateButton));
       updateButton();
+    });
+
+    const mediaDialog = document.querySelector('.media-dialog');
+    const mediaDialogImage = mediaDialog.querySelector('img');
+    const mediaDialogCaption = mediaDialog.querySelector('.media-dialog-caption');
+    const mediaDialogClose = mediaDialog.querySelector('.media-dialog-close');
+    let mediaDialogReturnFocus = null;
+
+    const closeMediaDialog = () => {
+      mediaDialog.hidden = true;
+      document.body.classList.remove('media-dialog-open');
+      mediaDialogImage.removeAttribute('src');
+      if (mediaDialogReturnFocus) mediaDialogReturnFocus.focus({ preventScroll:true });
+    };
+
+    document.querySelectorAll('.media-card a').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        const image = link.querySelector('img');
+        const caption = link.querySelector('figcaption');
+        mediaDialogImage.src = image.currentSrc || image.src;
+        mediaDialogImage.alt = image.alt;
+        mediaDialogCaption.replaceChildren(...Array.from(caption.childNodes, (node) => node.cloneNode(true)));
+        mediaDialogReturnFocus = link;
+        mediaDialog.hidden = false;
+        document.body.classList.add('media-dialog-open');
+        mediaDialogClose.focus({ preventScroll:true });
+      });
+    });
+
+    mediaDialogClose.addEventListener('click', closeMediaDialog);
+    mediaDialog.addEventListener('click', (event) => {
+      if (event.target === mediaDialog) closeMediaDialog();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !mediaDialog.hidden) closeMediaDialog();
     });
   </script>
 </body><div id="codex-agent-overlay-root" data-codex-agent-overlay-root="true"></div><grammarly-desktop-integration data-grammarly-shadow-root="true" style="visibility: visible !important;"></grammarly-desktop-integration></html>

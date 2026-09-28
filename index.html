@@ -57,12 +57,12 @@
     details.entry { border-bottom:1px solid var(--line); }
     details.entry summary { display:grid; grid-template-columns:1fr auto; gap:24px; padding:17px 0; cursor:pointer; list-style:none; align-items:start; }
     details.entry summary::-webkit-details-marker { display:none; }
-    .entry-title { position:relative; display:block; padding-right:1.15em; }
+    .entry-title { display:block; }
     .entry-title strong { font-weight:normal; }
     .organization-link, .school-link { text-decoration:underline; text-decoration-color:#a7aaa4; text-underline-offset:.18em; }
     .organization-link:hover, .school-link:hover { text-decoration-color:var(--ink); }
-    .entry-title::after { content:"▾"; position:absolute; top:.22em; right:0; color:var(--muted); font-size:.72em; line-height:1; text-decoration:none; }
-    details.entry[open] .entry-title::after { content:"▴"; }
+    .entry-title strong::after { content:"\00a0▾"; color:var(--muted); font-size:.72em; white-space:nowrap; text-decoration:none; position:relative; top:-.08em; }
+    details.entry[open] .entry-title strong::after { content:"\00a0▴"; }
     .entry-meta { display:block; margin-top:3px; color:var(--muted); font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; }
     .entry-date { color:var(--muted); font:14px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:nowrap; }
     .entry-body { padding:0 0 22px; max-width:none; }
